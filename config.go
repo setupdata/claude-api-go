@@ -7,8 +7,10 @@ import (
 )
 
 type Config struct {
+	Debug bool
+
 	// cookies
-	cookies []*http.Cookie
+	Cookies []*http.Cookie
 
 	// The maximum length of time to wait before giving up on a server request. A value of zero means no timeout.
 	Timeout time.Duration

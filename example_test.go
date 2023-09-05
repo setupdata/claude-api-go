@@ -17,7 +17,7 @@ func getClaude() (*Claude, error) {
 				Proxy: func(request *http.Request) (*url.URL, error) {
 					return url.Parse("http://localhost:7890")
 				},
-				cookies: CreateCookies(map[string]string{
+				Cookies: CreateCookies(map[string]string{
 					"sessionKey": "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",
 				}),
 			},

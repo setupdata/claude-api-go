@@ -265,7 +265,7 @@ func (c *Claude) AppendMessage(prompt string, conversationId string, attachments
 		resStr := scanner.Bytes()
 		if len(resStr) > 0 {
 			resStr = resStr[6:]
-			var messageRes *MessageRes
+			messageRes := &MessageRes{}
 			err = json.Unmarshal(resStr, messageRes)
 			if err != nil {
 				return "", err
@@ -281,7 +281,12 @@ func (c *Claude) AppendMessage(prompt string, conversationId string, attachments
 }
 
 func NewClaude(config *Config, options ...ClaudeOption) (*Claude, error) {
-	client := req.DevMode()
+	var client *req.Client
+	if config.Debug == true {
+		client = req.DevMode()
+	} else {
+		client = req.DefaultClient()
+	}
 	client.ImpersonateFirefox()
 
 	proxy := http.ProxyFromEnvironment
@@ -296,10 +301,10 @@ func NewClaude(config *Config, options ...ClaudeOption) (*Claude, error) {
 	}
 	client.SetTimeout(timeout)
 
-	if len(config.cookies) == 0 {
+	if len(config.Cookies) == 0 {
 		return nil, errors.New("cookies is nil")
 	}
-	client.SetCommonCookies(config.cookies...)
+	client.SetCommonCookies(config.Cookies...)
 
 	claude := &Claude{
 		client: client,
