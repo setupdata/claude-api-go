@@ -6,32 +6,30 @@ import (
 	"time"
 )
 
-type Base struct {
-	Uuid      string    `json:"uuid"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type Settings struct {
 	ClaudeConsolePrivacy string `json:"claude_console_privacy"`
 }
 
 type Organization struct {
-	Base         `json:",inline"`
-	Name         string   `json:"name"`
-	Settings     Settings `json:"settings"`
-	Capabilities []string `json:"capabilities"`
-	ActiveFlags  []string `json:"active_flags"`
+	Uuid         string    `json:"uuid"`
+	Name         string    `json:"name"`
+	Settings     Settings  `json:"settings"`
+	Capabilities []string  `json:"capabilities"`
+	ActiveFlags  []string  `json:"active_flags"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Organizations []*Organization
 
-type ChatConversation struct {
-	Base    `json:",inline"`
-	Name    string `json:"name"`
-	Summary string `json:"summary"`
+type ConversationInfo struct {
+	Uuid      string    `json:"uuid"`
+	Name      string    `json:"name"`
+	Summary   string    `json:"summary"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
-type ChatConversations []*ChatConversation
+type ListConversations []*ConversationInfo
 
 type Document struct {
 	FileName         string `json:"file_name"`
@@ -80,4 +78,48 @@ type MessageRes struct {
 	MessageLimit struct {
 		Type string `json:"type"`
 	} `json:"messageLimit"`
+}
+
+type Conversation struct {
+	Uuid         string        `json:"uuid"`
+	Name         string        `json:"name"`
+	Summary      string        `json:"summary"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+	ChatMessages []ChatMessage `json:"chat_messages"`
+}
+
+type ChatMessage struct {
+	Uuid         string       `json:"uuid"`
+	Text         string       `json:"text"`
+	Sender       string       `json:"sender"`
+	Index        int          `json:"index"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+	EditedAt     time.Time    `json:"edited_at"`
+	ChatFeedback ChatFeedback `json:"chat_feedback"`
+	Attachments  []Attachment `json:"attachments"`
+}
+
+type ChatFeedback struct {
+	Uuid      string    `json:"uuid"`
+	Type      string    `json:"type"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Attachment struct {
+	Id               string    `json:"id"`
+	FileName         string    `json:"file_name"`
+	FileSize         int       `json:"file_size"`
+	FileType         string    `json:"file_type"`
+	ExtractedContent string    `json:"extracted_content"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type RenameInfo struct {
+	OrganizationUuid string `json:"organization_uuid"`
+	ConversationUuid string `json:"conversation_uuid"`
+	Title            string `json:"title"`
 }

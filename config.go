@@ -9,6 +9,8 @@ import (
 type Config struct {
 	Debug bool
 
+	OrganizationIndex int
+
 	// cookies
 	Cookies []*http.Cookie
 

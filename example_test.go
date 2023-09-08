@@ -18,7 +18,7 @@ func getClaude() (*Claude, error) {
 					return url.Parse("http://localhost:7890")
 				},
 				Cookies: CreateCookies(map[string]string{
-					"sessionKey": "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",
+					"sessionKey": "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",
 				}),
 			},
 		)
@@ -91,6 +91,77 @@ func ExampleClaude_AppendMessage() {
 	}
 	log.Println(completion)
 
+	fmt.Printf("true")
+	return
+	// Output: true
+}
+
+func ExampleClaude_CreateConversation() {
+	var err error
+	claude, err = getClaude()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	conversationInfo, err := claude.CreateConversation("test_test", "test-test-test")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	log.Println(conversationInfo)
+	fmt.Printf("true")
+	return
+	// Output: true
+}
+
+func ExampleClaude_DeleteConversation() {
+	var err error
+	claude, err = getClaude()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	conversationInfo, err := claude.CreateConversation("test_test", "test-test-test")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	log.Println(conversationInfo)
+
+	success, err := claude.DeleteConversation(conversationInfo.Uuid)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	log.Println(success)
+	fmt.Printf("true")
+	return
+	// Output: true
+}
+
+func ExampleClaude_RenameConversation() {
+	var err error
+	claude, err = getClaude()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	conversationInfo, err := claude.CreateConversation("test_test", "test-test-test")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	log.Println(conversationInfo)
+
+	success, err := claude.DeleteConversation(conversationInfo.Uuid)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	log.Println(success)
 	fmt.Printf("true")
 	return
 	// Output: true

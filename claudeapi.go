@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/imroc/req/v3"
 	"mime/multipart"
 	"net/http"
@@ -40,7 +41,7 @@ func WithBaseHttpHandler(reqHandler RequestHandler) ClaudeOption {
 	}
 }
 
-func (c *Claude) GetOrganizationId(apiReqHandles ...RequestHandler) (string, error) {
+func (c *Claude) GetOrganizationId(organizationIndex int) (string, error) {
 	claudeUrl := "https://claude.ai/api/organizations"
 
 	var organizations Organizations
@@ -58,13 +59,6 @@ func (c *Claude) GetOrganizationId(apiReqHandles ...RequestHandler) (string, err
 		}
 	}
 
-	for _, apiReqHandle := range apiReqHandles {
-		err := apiReqHandle(request)
-		if err != nil {
-			return "", err
-		}
-	}
-
 	resp, err := request.Get(claudeUrl)
 	if err != nil {
 		return "", err
@@ -77,10 +71,13 @@ func (c *Claude) GetOrganizationId(apiReqHandles ...RequestHandler) (string, err
 	if len(organizations) == 0 {
 		return "", errors.New("organizations is empty")
 	}
-	return organizations[0].Uuid, nil
+	if organizationIndex > len(organizations)-1 {
+		return "", errors.New("organizationIndex exceeds length")
+	}
+	return organizations[organizationIndex].Uuid, nil
 }
 
-func (c *Claude) ListConversations(apiReqHandles ...RequestHandler) (chatConversations ChatConversations, err error) {
+func (c *Claude) ListConversations() (chatConversations ListConversations, err error) {
 	claudeUrl := fmt.Sprintf("https://claude.ai/api/organizations/%s/chat_conversations", c.organizationId)
 
 	var resError ErrorRes
@@ -92,13 +89,6 @@ func (c *Claude) ListConversations(apiReqHandles ...RequestHandler) (chatConvers
 
 	if c.baseReqHandler != nil {
 		err = c.baseReqHandler(request)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for _, apiReqHandle := range apiReqHandles {
-		err = apiReqHandle(request)
 		if err != nil {
 			return nil, err
 		}
@@ -117,6 +107,122 @@ func (c *Claude) ListConversations(apiReqHandles ...RequestHandler) (chatConvers
 	return chatConversations, nil
 }
 
+func (c *Claude) CreateConversation(name string, summary string) (*ConversationInfo, error) {
+	claudeUrl := fmt.Sprintf("https://claude.ai/api/organizations/%s/chat_conversations", c.organizationId)
+
+	var err error
+	conversationInfo := &ConversationInfo{}
+	resError := &ErrorRes{}
+
+	body := &ConversationInfo{
+		Uuid:    uuid.New().String(),
+		Name:    name,
+		Summary: summary,
+	}
+	bytesData, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	request := c.client.R().SetSuccessResult(conversationInfo).SetErrorResult(resError).SetBody(bytesData)
+
+	request.SetHeaders(defaultHeaders)
+	request.SetHeader("Content-Type", "application/json")
+
+	if c.baseReqHandler != nil {
+		err = c.baseReqHandler(request)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := request.Post(claudeUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.IsErrorState() {
+		err = resError.Err()
+		return nil, err
+	}
+
+	return conversationInfo, nil
+}
+
+func (c *Claude) DeleteConversation(conversationId string) (bool, error) {
+	claudeUrl := fmt.Sprintf("https://claude.ai/api/organizations/%s/chat_conversations/%s", c.organizationId, conversationId)
+
+	var err error
+	resError := &ErrorRes{}
+
+	body := conversationId
+
+	request := c.client.R().SetErrorResult(resError).SetBody(body)
+
+	request.SetHeaders(defaultHeaders)
+	request.SetHeader("Content-Type", "application/json")
+
+	if c.baseReqHandler != nil {
+		err = c.baseReqHandler(request)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	resp, err := request.Delete(claudeUrl)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.IsErrorState() {
+		err = resError.Err()
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (c *Claude) RenameConversation(conversationId string, title string) (bool, error) {
+	claudeUrl := "https://claude.ai/api/rename_chat"
+
+	var err error
+	resError := &ErrorRes{}
+
+	body := &RenameInfo{
+		OrganizationUuid: c.organizationId,
+		ConversationUuid: conversationId,
+		Title:            title,
+	}
+	bytesData, err := json.Marshal(body)
+	if err != nil {
+		return false, err
+	}
+
+	request := c.client.R().SetErrorResult(resError).SetBody(bytesData)
+
+	request.SetHeaders(defaultHeaders)
+	request.SetHeader("Content-Type", "application/json")
+
+	if c.baseReqHandler != nil {
+		err = c.baseReqHandler(request)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	resp, err := request.Post(claudeUrl)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.IsErrorState() {
+		err = resError.Err()
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (c *Claude) isBinaryFile(data []byte) bool {
 	if len(data) > 512 {
 		data = data[:512]
@@ -129,8 +235,7 @@ func (c *Claude) isBinaryFile(data []byte) bool {
 	return false
 }
 
-// ConvertDocument Make sure the file exists and has read permission
-func (c *Claude) ConvertDocument(fileName string, content []byte, apiReqHandles ...RequestHandler) (document *Document, err error) {
+func (c *Claude) ConvertDocument(fileName string, content []byte) (document *Document, err error) {
 	if len(content) > 10*1024*1024 {
 		return nil, errors.New("the file is larger than 10MB")
 	}
@@ -181,13 +286,6 @@ func (c *Claude) ConvertDocument(fileName string, content []byte, apiReqHandles 
 		}
 	}
 
-	for _, apiReqHandle := range apiReqHandles {
-		err = apiReqHandle(request)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	request.SetBody(body)
 
 	resp, err := request.Post(claudeUrl)
@@ -203,7 +301,7 @@ func (c *Claude) ConvertDocument(fileName string, content []byte, apiReqHandles 
 	return document, nil
 }
 
-func (c *Claude) AppendMessage(prompt string, conversationId string, attachments []*Document, apiReqHandles ...RequestHandler) (completion string, err error) {
+func (c *Claude) AppendMessage(prompt string, conversationId string, attachments []*Document) (completion string, err error) {
 	if attachments == nil {
 		attachments = make([]*Document, 0)
 	}
@@ -229,7 +327,7 @@ func (c *Claude) AppendMessage(prompt string, conversationId string, attachments
 		return "", err
 	}
 
-	request := c.client.R().SetErrorResult(&resError)
+	request := c.client.R().SetErrorResult(&resError).SetBody(bytes.NewReader(bytesData))
 
 	request.SetHeaders(defaultHeaders)
 	request.SetHeader("Content-Type", "application/json")
@@ -240,15 +338,6 @@ func (c *Claude) AppendMessage(prompt string, conversationId string, attachments
 			return "", err
 		}
 	}
-
-	for _, apiReqHandle := range apiReqHandles {
-		err = apiReqHandle(request)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	request.SetBody(bytes.NewReader(bytesData))
 
 	resp, err := request.Post(claudeUrl)
 	if err != nil {
@@ -287,7 +376,7 @@ func NewClaude(config *Config, options ...ClaudeOption) (*Claude, error) {
 	} else {
 		client = req.DefaultClient()
 	}
-	client.ImpersonateFirefox()
+	client.ImpersonateChrome()
 
 	proxy := http.ProxyFromEnvironment
 	if config.Proxy != nil {
@@ -316,7 +405,7 @@ func NewClaude(config *Config, options ...ClaudeOption) (*Claude, error) {
 		}
 	}
 
-	organizationId, err := claude.GetOrganizationId()
+	organizationId, err := claude.GetOrganizationId(config.OrganizationIndex)
 	if err != nil {
 		return nil, err
 	}
